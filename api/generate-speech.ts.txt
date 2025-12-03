@@ -1,0 +1,59 @@
+import { GoogleGenAI, Modality } from "@google/genai";
+
+export default async function handler(req: any, res: any) {
+  // CORS Handling
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method Not Allowed' });
+    return;
+  }
+
+  try {
+    const { text, voiceName } = req.body;
+    const apiKey = process.env.API_KEY;
+
+    if (!apiKey) {
+      res.status(500).json({ error: 'Chave de API não configurada no servidor' });
+      return;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: text }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: voiceName || 'Kore' },
+          },
+        },
+      },
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+    if (!base64Audio) {
+      throw new Error("Nenhum áudio retornado pelo Gemini TTS");
+    }
+
+    res.status(200).json({ audioData: base64Audio });
+
+  } catch (error: any) {
+    console.error('Erro na API generate-speech:', error);
+    res.status(500).json({ error: error.message || 'Erro na geração de voz' });
+  }
+}

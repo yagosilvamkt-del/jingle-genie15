@@ -1,0 +1,60 @@
+import { GoogleGenAI } from "@google/genai";
+
+export default async function handler(req: any, res: any) {
+  // CORS Handling
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method Not Allowed' });
+    return;
+  }
+
+  try {
+    const { rawText, trackName } = req.body;
+    const apiKey = process.env.API_KEY;
+
+    if (!apiKey) {
+      res.status(500).json({ error: 'Chave de API não configurada no servidor' });
+      return;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+    
+    const prompt = `
+      Você é um redator profissional de rádio.
+      Eu tenho um texto bruto para um anúncio: "${rawText}".
+      A trilha de fundo tem o estilo "${trackName}" e duração total de 40 segundos.
+      
+      Reescreva este texto para ser impactante, envolvente e adequado para uma locução comercial.
+      IMPORTANTE: O texto DEVE ter no máximo 60 palavras para ser lido confortavelmente em 35 segundos.
+      Seja conciso.
+      Use linguagem simples em Português do Brasil.
+      Não adicione indicações de efeitos sonoros como [SFX] ou [Música]. Apenas as palavras faladas.
+      Retorne APENAS o texto a ser falado, sem aspas.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    const polishedText = response.text?.trim() || rawText;
+
+    res.status(200).json({ text: polishedText });
+
+  } catch (error: any) {
+    console.error('Erro na API generate-script:', error);
+    res.status(500).json({ error: error.message || 'Erro interno' });
+  }
+}

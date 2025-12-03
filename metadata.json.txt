@@ -1,0 +1,7 @@
+{
+  "name": "JingleGenie - Criador Automático de Comerciais",
+  "description": "Crie jingles comerciais profissionais em segundos usando a Inteligência Gemini. Escolha uma trilha, digite sua oferta e deixe a IA polir o roteiro, gerar a locução e mixar perfeitamente com a música.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
